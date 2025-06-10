@@ -54,14 +54,14 @@ import type { Equipment, Layer, ColorMode } from '@/lib/types';
  * @param scene A instância da cena Three.js onde as luzes serão adicionadas.
  */
 export function setupLighting(scene: THREE.Scene): void {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Aumentado um pouco
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
   scene.add(ambientLight);
 
-  const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1.0); // Céu azulado, chão terroso sutil
+  const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1.2); 
   scene.add(hemisphereLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 3.5); // Mais forte
-  directionalLight.position.set(15, 20, 12); // Posição ajustada
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 4.5); 
+  directionalLight.position.set(30, 40, 25); 
   directionalLight.castShadow = false;
   scene.add(directionalLight);
 }
@@ -76,9 +76,9 @@ export function setupLighting(scene: THREE.Scene): void {
 export function setupGroundPlane(scene: THREE.Scene): THREE.Mesh {
   const groundGeometry = new THREE.PlaneGeometry(100, 100);
   const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0xBBBBBB, // Alterado para cinza neutro
+    color: 0xBBBBBB, 
     side: THREE.DoubleSide,
-    metalness: 0.2, // Um pouco mais metálico para reflexos sutis
+    metalness: 0.2, 
     roughness: 0.8,
     transparent: false,
     opacity: 1.0,
@@ -86,7 +86,7 @@ export function setupGroundPlane(scene: THREE.Scene): THREE.Mesh {
   const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.position.y = 0;
-  groundMesh.receiveShadow = false; // Sombras desabilitadas
+  groundMesh.receiveShadow = false; 
   groundMesh.userData = { tag: 'terrain-ground-plane' };
   scene.add(groundMesh);
   return groundMesh;
@@ -124,9 +124,9 @@ export function setupRenderPipeline(
   });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(initialWidth, initialHeight);
-  renderer.shadowMap.enabled = false; // Sombras desabilitadas globalmente
-  scene.background = new THREE.Color(0xA9C1D1); // Mantido
-  scene.fog = new THREE.Fog(0xA9C1D1, 150, 800); // Ajustado para ser um pouco mais próximo
+  renderer.shadowMap.enabled = false; 
+  scene.background = new THREE.Color(0xA9C1D1); 
+  scene.fog = new THREE.Fog(0xA9C1D1, 150, 800); 
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(initialWidth, initialHeight);
@@ -347,3 +347,4 @@ export function updateEquipmentMeshesInScene({
     groundMeshRef.current.visible = groundShouldBeVisible;
   }
 }
+

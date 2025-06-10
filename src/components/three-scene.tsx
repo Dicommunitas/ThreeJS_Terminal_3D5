@@ -222,17 +222,17 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
   const createSingleEquipmentMesh = useCallback((item: Equipment): THREE.Object3D => {
     const finalColor = getEquipmentColor(item, colorMode);
     const material = new THREE.MeshStandardMaterial({
-      color: finalColor, metalness: 0.3, roughness: 0.6, transparent: false, opacity: 1.0,
+      color: finalColor, metalness: 0.3, roughness: 0.4, transparent: false, opacity: 1.0,
     });
     
-    const geometryOrGroup = createGeometryForItem(item); // Geometries should be centered at local origin.
+    const geometryOrGroup = createGeometryForItem(item); 
     let meshOrGroup: THREE.Object3D;
 
     if (geometryOrGroup instanceof THREE.Group) {
         meshOrGroup = geometryOrGroup;
         meshOrGroup.traverse((object) => {
             if (object instanceof THREE.Mesh) {
-                object.material = material.clone(); // Clone material for groups to avoid sharing issues
+                object.material = material.clone(); 
                 object.castShadow = false;
                 object.receiveShadow = false;
             }
@@ -243,13 +243,11 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
         (meshOrGroup as THREE.Mesh).receiveShadow = false;
     }
     
-    // Adjust Y position for ground-based objects
     let yPos = item.position.y;
     let effectiveHeight = 0;
 
     if (item.size?.height) effectiveHeight = item.size.height;
     else if (item.height) effectiveHeight = item.height;
-    // For spheres, radius can be considered half-height for ground placement.
     else if (item.radius && (item.type === 'Sphere' || item.type === 'Valve')) effectiveHeight = item.radius * 2;
 
 
@@ -261,10 +259,8 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
         item.type === 'Barge' ||
         (item.type === 'Vessel' && (item.orientation === 'vertical' || !item.orientation))
     ) {
-      // item.position.y is base, geometry is centered, so world center is item.position.y + height/2
       yPos = item.position.y + effectiveHeight / 2;
     } else {
-      // For Pipe, Valve, Sphere, horizontal Vessel, item.position.y is already their world center.
       yPos = item.position.y;
     }
     
@@ -446,3 +442,4 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
 };
 
 export default ThreeScene;
+
