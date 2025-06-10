@@ -1,121 +1,91 @@
 
 import * as THREE from 'three';
 import type { Equipment } from '@/lib/types';
+// Removed createBollardsGroup and createFendersGroup as they are not used in this simplified version
+// and were related to previous, more detailed attempts.
 
 export function createShipGeometry(item: Equipment): THREE.Group {
   const tankerGroup = new THREE.Group();
+  // Use a single, non-visible material for all parts for now.
+  // The actual color is applied by createSingleEquipmentMesh in scene-elements-setup.ts
   const tempMaterial = new THREE.MeshStandardMaterial({ color: item.color || 0x607D8B, visible: false });
 
   const shipWidth = item.size?.width || 12;
-  const shipOverallHeight = item.size?.height || 6;
-  const mainHullDepth = (item.size?.depth || 50) * 0.8;
-  const bowSectionLength = (item.size?.depth || 50) * 0.2;
+  const shipOverallHeight = item.size?.height || 6; // This is the total height of the hull + deck structure
+  const mainHullDepth = (item.size?.depth || 50) * 0.8; // Main rectangular part
+  const bowSectionLength = (item.size?.depth || 50) * 0.2; // Length of the tapered bow section
 
-  // 1. Casco Principal (Corpo Retangular)
+  // 1. Casco Principal (Main Rectangular Body)
+  // Centered at (0,0,0) within the tankerGroup
   const mainHullMesh = new THREE.Mesh(
     new THREE.BoxGeometry(shipWidth, shipOverallHeight, mainHullDepth),
     tempMaterial
   );
-  mainHullMesh.position.set(0, 0, -bowSectionLength / 2); // Centro do casco principal deslocado para trás
+  mainHullMesh.position.set(0, 0, 0); // Explicitly center main hull in the group
   tankerGroup.add(mainHullMesh);
 
-  // 2. Seção da Proa
+  // 2. Seção da Proa (Bow Section)
   const bowShape = new THREE.Shape();
-  // Uma forma de V mais pronunciada para a proa
-  bowShape.moveTo(0, bowSectionLength); // Ponta da proa
-  bowShape.lineTo(-shipWidth / 2, 0);    // Canto traseiro esquerdo da base da proa
-  bowShape.lineTo(shipWidth / 2, 0);     // Canto traseiro direito da base da proa
-  bowShape.closePath();                  // Fecha a forma de volta à ponta (criando uma linha, mas ExtrudeGeometry lida com isso)
-  // Ou, para uma base reta na conexão com o casco:
-  // bowShape.moveTo(-shipWidth / 2, 0); // Canto traseiro esquerdo
-  // bowShape.lineTo(shipWidth / 2, 0);  // Canto traseiro direito
-  // bowShape.lineTo(0, bowSectionLength); // Ponta da proa
-  // bowShape.closePath();
-
+  // Define shape in XY plane, bowLength along Y-axis of the shape
+  bowShape.moveTo(-shipWidth / 2, 0); // Base of bow, left corner
+  bowShape.lineTo(shipWidth / 2, 0);  // Base of bow, right corner
+  bowShape.lineTo(0, bowSectionLength);   // Tip of the bow
+  bowShape.closePath();
 
   const extrudeSettings = { depth: shipOverallHeight, bevelEnabled: false };
   const bowGeometry = new THREE.ExtrudeGeometry(bowShape, extrudeSettings);
 
-  // A geometria é criada no plano XY e extrudada ao longo de Z.
-  // Rotaciona para que a extrusão (altura do navio) fique ao longo de Y,
-  // e o 'comprimento' da forma (bowSectionLength) fique ao longo de Z.
+  // Orient the bow geometry:
+  // Rotate so that the extrusion depth (shipOverallHeight) is along the Y-axis,
+  // and the shape's Y-axis (bowSectionLength) is along the new -Z axis.
   bowGeometry.rotateX(-Math.PI / 2);
-
-  // Centraliza a geometria da proa verticalmente e ao longo de seu próprio comprimento.
-  // Originalmente, após a rotação X, a extrusão (altura) está de Y=0 a Y=-shipOverallHeight.
-  // E o comprimento da proa (originalmente Y na Shape) está de Z=0 a Z=bowSectionLength.
-  bowGeometry.translate(0, shipOverallHeight / 2, -bowSectionLength / 2); // Centraliza altura e comprimento
+  // IMPORTANT: No local Y or Z translation on the geometry itself.
+  // It should be centered around its local (0,0,0) after rotation.
+  // The default ExtrudeGeometry is centered along its extrusion axis.
 
   const bowMesh = new THREE.Mesh(bowGeometry, tempMaterial.clone());
-  // Posiciona o centro da proa à frente do centro do casco principal.
-  bowMesh.position.set(0, 0, mainHullDepth / 2); // Agora deve encaixar corretamente
-  // A rotação de 180 graus não é mais necessária se a Shape for definida corretamente para apontar para frente.
-  // Se a ponta da Shape (0, bowSectionLength) é a frente, a rotação de -PI/2 em X já a orienta.
-  // Se necessário, ajuste a rotação da Shape ou do Mesh aqui. Se a forma está "de costas":
-  // bowMesh.rotation.y = Math.PI; // Descomente se a proa estiver virada para trás
-
+  // Rotate the bow mesh to point forward (tip towards +Z in group space)
+  bowMesh.rotation.y = Math.PI; 
+  // Position the bow mesh:
+  // Y=0 to align its vertical center with the main hull's vertical center.
+  // Z = mainHullDepth / 2 to place its local Z=0 (connecting face) at the front of the main hull.
+  bowMesh.position.set(0, 0, mainHullDepth / 2);
   tankerGroup.add(bowMesh);
 
-  // 3. Superestrutura Simplificada (Popa)
-  const superstructureWidth = shipWidth * 0.7;
-  const superstructureBaseHeight = shipOverallHeight * 0.5;
-  const superstructureTopHeight = shipOverallHeight * 0.4;
-  const superstructureDepth = mainHullDepth * 0.3;
+  // 3. Superestrutura Simplificada (na Popa - Stern)
+  const superstructureWidth = shipWidth * 0.6;
+  const superstructureHeight = shipOverallHeight * 0.7; // Taller than before
+  const superstructureDepth = mainHullDepth * 0.25;
 
-  const superstructureBaseMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(superstructureWidth, superstructureBaseHeight, superstructureDepth),
+  const superstructureMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(superstructureWidth, superstructureHeight, superstructureDepth),
     tempMaterial.clone()
   );
-  // Posiciona na popa, sobre o convés (Y=0 é o centro do casco principal)
-  superstructureBaseMesh.position.set(
+  // Position superstructure on top of the main hull, towards the stern
+  superstructureMesh.position.set(
     0,
-    superstructureBaseHeight / 2, // Metade da altura da base da superestrutura acima do convés (que está em Y=0 do grupo)
-    mainHullMesh.position.z - mainHullDepth / 2 + superstructureDepth / 2 + mainHullDepth * 0.05 // Na popa
+    shipOverallHeight / 2 + superstructureHeight / 2, // Base of superstructure on deck
+    -mainHullDepth / 2 + superstructureDepth / 2 // Positioned at the rear part of the main hull
   );
-  tankerGroup.add(superstructureBaseMesh);
+  tankerGroup.add(superstructureMesh);
 
-  const superstructureTopMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(superstructureWidth * 0.8, superstructureTopHeight, superstructureDepth * 0.7),
-    tempMaterial.clone()
-  );
-  superstructureTopMesh.position.set(
-    superstructureBaseMesh.position.x,
-    superstructureBaseMesh.position.y + superstructureBaseHeight / 2 + superstructureTopHeight / 2,
-    superstructureBaseMesh.position.z
-  );
-  tankerGroup.add(superstructureTopMesh);
-
-  // 4. Chaminé
-  const funnelRadius = superstructureWidth * 0.1;
-  const funnelHeight = superstructureTopHeight * 1.5;
+  // 4. Chaminé (Funnel)
+  const funnelRadius = superstructureWidth * 0.15;
+  const funnelHeight = superstructureHeight * 0.8; 
   const funnelMesh = new THREE.Mesh(
     new THREE.CylinderGeometry(funnelRadius, funnelRadius, funnelHeight, 16),
     tempMaterial.clone()
   );
+  // Position funnel on top of the superstructure
   funnelMesh.position.set(
-    superstructureTopMesh.position.x,
-    superstructureTopMesh.position.y + superstructureTopHeight / 2 + funnelHeight / 2,
-    superstructureTopMesh.position.z - superstructureDepth * 0.25 // Um pouco para trás na superestrutura
+    superstructureMesh.position.x, // Align with superstructure center X
+    superstructureMesh.position.y + superstructureHeight / 2 + funnelHeight / 2, // On top
+    superstructureMesh.position.z // Align with superstructure center Z
   );
   tankerGroup.add(funnelMesh);
   
-  // 5. Castelo de Proa
-  const forecastleWidth = shipWidth * 0.8;
-  const forecastleHeight = shipOverallHeight * 0.15; // Mais baixo
-  const forecastleDepth = bowSectionLength * 0.5; // Metade do comprimento da proa
-
-  const forecastleMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(forecastleWidth, forecastleHeight, forecastleDepth),
-    tempMaterial.clone()
-  );
-  // Posiciona sobre a seção da proa, à frente
-  // O convés da proa está em Y=0 do grupo. O castelo fica sobre ele.
-  forecastleMesh.position.set(
-    0,
-    forecastleHeight / 2, 
-    bowMesh.position.z + bowSectionLength / 2 - forecastleDepth / 2 // Na parte da frente da proa
-  );
-  tankerGroup.add(forecastleMesh);
+  // Note: Removed cranes/masts and forecastle for simplification to focus on hull and superstructure.
+  // They can be added back once the main body is correct.
 
   return tankerGroup;
 }
