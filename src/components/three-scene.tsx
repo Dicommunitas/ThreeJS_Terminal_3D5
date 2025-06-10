@@ -225,31 +225,56 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
       color: finalColor, metalness: 0.3, roughness: 0.6, transparent: false, opacity: 1.0,
     });
     
-    const geometryOrGroup = createGeometryForItem(item);
+    const geometryOrGroup = createGeometryForItem(item); // Geometries should be centered at local origin.
     let meshOrGroup: THREE.Object3D;
 
     if (geometryOrGroup instanceof THREE.Group) {
         meshOrGroup = geometryOrGroup;
-        // Aplica o material a todos os meshes filhos do grupo
         meshOrGroup.traverse((object) => {
             if (object instanceof THREE.Mesh) {
-                object.material = material;
+                object.material = material.clone(); // Clone material for groups to avoid sharing issues
                 object.castShadow = false;
                 object.receiveShadow = false;
             }
         });
-    } else { // THREE.BufferGeometry
+    } else { 
         meshOrGroup = new THREE.Mesh(geometryOrGroup, material);
         (meshOrGroup as THREE.Mesh).castShadow = false;
         (meshOrGroup as THREE.Mesh).receiveShadow = false;
     }
     
-    meshOrGroup.position.set(item.position.x, item.position.y, item.position.z);
+    // Adjust Y position for ground-based objects
+    let yPos = item.position.y;
+    let effectiveHeight = 0;
+
+    if (item.size?.height) effectiveHeight = item.size.height;
+    else if (item.height) effectiveHeight = item.height;
+    // For spheres, radius can be considered half-height for ground placement.
+    else if (item.radius && (item.type === 'Sphere' || item.type === 'Valve')) effectiveHeight = item.radius * 2;
+
+
+    if (item.type === 'Building' || 
+        item.type === 'Tank' || 
+        item.type === 'Crane' || 
+        item.type === 'Pump' ||
+        item.type === 'Ship' ||
+        item.type === 'Barge' ||
+        (item.type === 'Vessel' && (item.orientation === 'vertical' || !item.orientation))
+    ) {
+      // item.position.y is base, geometry is centered, so world center is item.position.y + height/2
+      yPos = item.position.y + effectiveHeight / 2;
+    } else {
+      // For Pipe, Valve, Sphere, horizontal Vessel, item.position.y is already their world center.
+      yPos = item.position.y;
+    }
+    
+    meshOrGroup.position.set(item.position.x, yPos, item.position.z); 
+
     if (item.rotation) {
       meshOrGroup.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
     }
     meshOrGroup.userData = { tag: item.tag, type: item.type, sistema: item.sistema };
-    meshOrGroup.visible = true; // Visibilidade inicial controlada aqui, pode ser ajustada por camadas
+    meshOrGroup.visible = true; 
     
     return meshOrGroup;
   }, [colorMode]);
@@ -341,8 +366,6 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
         return;
       }
     } else {
-      // Caso especial para 'INITIAL_LOAD_NO_SYSTEM', não precisa de meshes para calcular a vista.
-      // A câmera já deve estar na posição inicial desejada pelo useCameraManager/useSceneSetup.
       onSystemFramedRef.current?.();
       return;
     }
@@ -376,7 +399,7 @@ const ThreeScene: React.FC<ThreeSceneProps> = (props) => {
     if (isAnimatingRef.current && cameraRef.current && controlsRef.current && animationStartPosRef.current && animationStartLookAtRef.current && animationTargetPosRef.current && animationTargetLookAtRef.current) {
       const elapsedTime = performance.now() - animationStartTimeRef.current;
       let alpha = Math.min(elapsedTime / ANIMATION_DURATION_MS, 1);
-      alpha = 1 - Math.pow(1 - alpha, 4); // ease-out quart
+      alpha = 1 - Math.pow(1 - alpha, 4); 
       cameraRef.current.position.lerpVectors(animationStartPosRef.current, animationTargetPosRef.current, alpha);
       controlsRef.current.target.lerpVectors(animationStartLookAtRef.current, animationTargetLookAtRef.current, alpha);
       controlsRef.current.update();

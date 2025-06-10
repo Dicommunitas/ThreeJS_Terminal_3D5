@@ -54,14 +54,14 @@ import type { Equipment, Layer, ColorMode } from '@/lib/types';
  * @param scene A instância da cena Three.js onde as luzes serão adicionadas.
  */
 export function setupLighting(scene: THREE.Scene): void {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); // Aumentado um pouco
   scene.add(ambientLight);
 
-  const hemisphereLight = new THREE.HemisphereLight(0xADD8E6, 0x495436, 0.8);
+  const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1.0); // Céu azulado, chão terroso sutil
   scene.add(hemisphereLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0);
-  directionalLight.position.set(10, 15, 10);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 3.5); // Mais forte
+  directionalLight.position.set(15, 20, 12); // Posição ajustada
   directionalLight.castShadow = false;
   scene.add(directionalLight);
 }
@@ -76,9 +76,9 @@ export function setupLighting(scene: THREE.Scene): void {
 export function setupGroundPlane(scene: THREE.Scene): THREE.Mesh {
   const groundGeometry = new THREE.PlaneGeometry(100, 100);
   const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0xE6D8B0,
+    color: 0xBBBBBB, // Alterado para cinza neutro
     side: THREE.DoubleSide,
-    metalness: 0.1,
+    metalness: 0.2, // Um pouco mais metálico para reflexos sutis
     roughness: 0.8,
     transparent: false,
     opacity: 1.0,
@@ -86,7 +86,7 @@ export function setupGroundPlane(scene: THREE.Scene): THREE.Mesh {
   const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.position.y = 0;
-  groundMesh.receiveShadow = false;
+  groundMesh.receiveShadow = false; // Sombras desabilitadas
   groundMesh.userData = { tag: 'terrain-ground-plane' };
   scene.add(groundMesh);
   return groundMesh;
@@ -124,9 +124,9 @@ export function setupRenderPipeline(
   });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(initialWidth, initialHeight);
-  renderer.shadowMap.enabled = false;
-  scene.background = new THREE.Color(0xA9C1D1);
-  scene.fog = new THREE.Fog(0xA9C1D1, 200, 1000);
+  renderer.shadowMap.enabled = false; // Sombras desabilitadas globalmente
+  scene.background = new THREE.Color(0xA9C1D1); // Mantido
+  scene.fog = new THREE.Fog(0xA9C1D1, 150, 800); // Ajustado para ser um pouco mais próximo
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(initialWidth, initialHeight);
@@ -233,7 +233,7 @@ export function updateEquipmentMeshesInScene({
   equipmentMeshesRef,
   newEquipmentData,
   layers,
-  colorMode,
+  colorMode, // colorMode é usado dentro de createSingleEquipmentMesh que é chamado abaixo
   createSingleEquipmentMesh,
   groundMeshRef,
 }: UpdateEquipmentMeshesParams): void {
@@ -254,6 +254,7 @@ export function updateEquipmentMeshesInScene({
   const tagsInNewData = new Set(newEquipmentData.map(e => e.tag));
   const newVisibleMeshesList: THREE.Object3D[] = [];
 
+  // Remove or hide meshes that are no longer in newEquipmentData or not visible by layer
   equipmentMeshesRef.current.forEach(existingMesh => {
     const itemTag = existingMesh.userData.tag;
     const itemInNewData = newEquipmentData.find(e => e.tag === itemTag);
@@ -262,7 +263,6 @@ export function updateEquipmentMeshesInScene({
 
     if (!tagsInNewData.has(itemTag) || (itemInNewData && !isVisibleByLayer)) {
       scene.remove(existingMesh);
-      // Dispose resources of the mesh and its children if it's a group
       existingMesh.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry?.dispose();
@@ -273,26 +273,50 @@ export function updateEquipmentMeshesInScene({
           }
         }
       });
-      currentMeshesByTag.delete(itemTag);
+      currentMeshesByTag.delete(itemTag); // Remove from map to avoid re-adding
+    } else {
+      // If it's still in new data and visible, it might need an update (handled below) or just be kept
+      // For simplicity, we'll always recreate for now if any visual property might change (like colorMode)
+      // This part is simplified: if it exists, we'll remove it and re-add if needed (below)
+      // to ensure colorMode changes are picked up by createSingleEquipmentMesh.
     }
   });
 
+  // Add new or update existing meshes
   newEquipmentData.forEach(item => {
     const layerForItem = layers.find(l => l.equipmentType === item.type);
     const isVisibleByLayer = layerForItem?.isVisible ?? true;
 
     if (!isVisibleByLayer) {
-      return;
-    }
-
-    let existingMesh = currentMeshesByTag.get(item.tag);
-
-    if (existingMesh) {
-        scene.remove(existingMesh);
+      // If it exists but shouldn't be visible, ensure it's removed (already handled above if it was in currentMeshesByTag)
+      const existingMesh = currentMeshesByTag.get(item.tag);
+      if (existingMesh) {
+        scene.remove(existingMesh); // Double check removal if it was kept by mistake
+        // Dispose resources
         existingMesh.traverse((object) => {
             if (object instanceof THREE.Mesh) {
                 object.geometry?.dispose();
-                if (Array.isArray(object.material)) {
+                 if (Array.isArray(object.material)) {
+                    (object.material as THREE.Material[]).forEach(m => m.dispose());
+                } else if (object.material) {
+                    (object.material as THREE.Material).dispose();
+                }
+            }
+        });
+        currentMeshesByTag.delete(item.tag);
+      }
+      return; // Skip adding if not visible by layer
+    }
+
+    // If a mesh for this tag already existed, remove it to recreate with potentially new color/material.
+    // This simplifies handling updates significantly.
+    const oldMesh = currentMeshesByTag.get(item.tag);
+    if (oldMesh) {
+        scene.remove(oldMesh);
+         oldMesh.traverse((object) => {
+            if (object instanceof THREE.Mesh) {
+                object.geometry?.dispose();
+                 if (Array.isArray(object.material)) {
                     (object.material as THREE.Material[]).forEach(m => m.dispose());
                 } else if (object.material) {
                     (object.material as THREE.Material).dispose();
@@ -300,15 +324,16 @@ export function updateEquipmentMeshesInScene({
             }
         });
     }
-
-    const newOrUpdatedMesh = createSingleEquipmentMesh(item);
-    newOrUpdatedMesh.visible = isVisibleByLayer; // Ensure visibility is set based on layer
+    
+    const newOrUpdatedMesh = createSingleEquipmentMesh(item); // This applies colorMode
+    newOrUpdatedMesh.visible = true; // It's visible by layer, so ensure mesh.visible is true
     scene.add(newOrUpdatedMesh);
     newVisibleMeshesList.push(newOrUpdatedMesh);
   });
 
   equipmentMeshesRef.current = newVisibleMeshesList;
 
+  // Manage ground plane visibility
   const terrainLayer = layers.find(l => l.id === 'layer-terrain');
   if (terrainLayer && groundMeshRef && groundMeshRef.current) {
     const isGroundInScene = scene.children.some(child => child.uuid === groundMeshRef.current?.uuid);
