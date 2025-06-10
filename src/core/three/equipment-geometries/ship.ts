@@ -4,138 +4,111 @@ import type { Equipment } from '@/lib/types';
 
 export function createShipGeometry(item: Equipment): THREE.Group {
   const group = new THREE.Group();
-  const hullWidth = item.size?.width || 10;
-  const hullHeight = item.size?.height || 4; // Altura total do corpo principal do casco
-  const hullDepth = item.size?.depth || 40;
+  const shipWidth = item.size?.width || 12; // Beam
+  const shipOverallHeight = item.size?.height || 6; // Total height from keel to main deck level for geometry
+  const shipOverallLength = item.size?.depth || 50; // Total length
 
   const tempMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, visible: false });
 
-  // Casco Principal (Corpo + Proa + Popa)
-  // O casco principal será um BoxGeometry, e a proa/popa serão adicionadas
-  const mainHullDepth = hullDepth * 0.75; // Corpo principal do casco
-  const bowLength = hullDepth * 0.15;     // Comprimento da seção da proa
-  const sternLength = hullDepth * 0.10;   // Comprimento da seção da popa
+  // --- Dimensions based on example's proportions more than absolute values ---
+  const lowerHullHeight = shipOverallHeight * 0.6; // Part below main deck level
+  const upperDeckHeight = shipOverallHeight * 0.4; // Main deck thickness + any bulwark
 
-  const mainHullGeo = new THREE.BoxGeometry(hullWidth, hullHeight, mainHullDepth);
-  const mainHullMesh = new THREE.Mesh(mainHullGeo, tempMaterial.clone());
-  // O centro Y do mainHullMesh é 0 em relação ao group. Sua base estará em -hullHeight/2.
-  group.add(mainHullMesh);
+  const mainBodyLength = shipOverallLength * 0.75; // Main rectangular part of the hull
+  const bowSectionLength = shipOverallLength * 0.25; // Length dedicated to the bow shape
 
-  // Seção da Proa (afunilada)
+  // 1. Main Hull - Lower Part (conceptual "underwater" part)
+  const mainLowerHullGeo = new THREE.BoxGeometry(shipWidth, lowerHullHeight, mainBodyLength);
+  const mainLowerHullMesh = new THREE.Mesh(mainLowerHullGeo, tempMaterial.clone());
+  // Position its center: Y so its top is at overall Y=0, Z so its front is ready for bow
+  mainLowerHullMesh.position.set(0, -upperDeckHeight / 2, -bowSectionLength / 2);
+  group.add(mainLowerHullMesh);
+
+  // 2. Main Hull - Upper Part/Deck
+  const mainUpperDeckGeo = new THREE.BoxGeometry(shipWidth, upperDeckHeight, mainBodyLength);
+  const mainUpperDeckMesh = new THREE.Mesh(mainUpperDeckGeo, tempMaterial.clone());
+  // Position its center: Y so its bottom aligns with lower hull's top, Z same as lower hull
+  mainUpperDeckMesh.position.set(0, lowerHullHeight / 2, -bowSectionLength / 2);
+  group.add(mainUpperDeckMesh);
+
+  // 3. Bow Section (combined upper and lower)
   const bowShape = new THREE.Shape();
-  bowShape.moveTo(-hullWidth / 2, 0); // Canto inferior esquerdo da base da proa
-  bowShape.lineTo(hullWidth / 2, 0);  // Canto inferior direito
-  bowShape.lineTo(0, bowLength);        // Ponta da proa
+  // Shape is in XY plane, will be extruded along Z, then rotated.
+  // X maps to ship's width, Y maps to bow section's length.
+  bowShape.moveTo(-shipWidth / 2, 0); // Back bottom-left of bow part
+  bowShape.lineTo(shipWidth / 2, 0);  // Back bottom-right
+  // Create a more pointed bow, less aggressively curved than example to avoid self-intersection issues with extrude
+  bowShape.lineTo(shipWidth / 3, bowSectionLength * 0.5);
+  bowShape.lineTo(0, bowSectionLength); // Tip of the bow
+  bowShape.lineTo(-shipWidth / 3, bowSectionLength * 0.5);
+  bowShape.lineTo(-shipWidth / 2, 0); // Back to start
   bowShape.closePath();
+  
+  const extrudeSettings = { depth: shipOverallHeight, bevelEnabled: false };
+  const bowGeometry = new THREE.ExtrudeGeometry(bowShape, extrudeSettings);
+  
+  // Correctly orient and position the bow
+  bowGeometry.rotateX(-Math.PI / 2); // Rotate shape from XY plane to XZ plane (top-down view), extrusion depth (Y) is height
+  bowGeometry.translate(0, 0, bowSectionLength/2); // Center the geometry along its length
 
-  const bowExtrudeSettings = { depth: hullHeight, bevelEnabled: false };
-  const bowGeo = new THREE.ExtrudeGeometry(bowShape, bowExtrudeSettings);
-  bowGeo.rotateX(-Math.PI / 2); // Deita a forma para alinhar com o casco
-  const bowMesh = new THREE.Mesh(bowGeo, tempMaterial.clone());
-  // Posiciona a base da proa na frente do casco principal
-  // O centro Z do mainHullMesh está em 0. Sua frente está em mainHullDepth / 2.
-  // O centro Z da bowMesh (após rotação) é o centro do seu "comprimento" (bowLength).
-  // Queremos que a base da proa (seu Z=0 na forma 2D) encoste na frente do casco.
-  bowMesh.position.set(0, 0, mainHullDepth / 2);
+  const bowMesh = new THREE.Mesh(bowGeometry, tempMaterial.clone());
+  // Position the centered bow part in front of the main hull.
+  // Main hull front is at Z = (mainBodyLength/2 - bowSectionLength/2)
+  // Bow's local Z=0 should align with that.
+  bowMesh.position.set(0, 0, mainBodyLength / 2 ); 
   group.add(bowMesh);
+  
+  // 4. Superstructure (simplified, at the stern)
+  const superstructureWidth = shipWidth * 0.7;
+  const superstructureLength = shipOverallLength * 0.2;
+  const superstructureHeight = shipOverallHeight * 1.2; // Taller than main hull
 
-  // Seção da Popa (levemente afunilada)
-  const sternShape = new THREE.Shape();
-  const sternTaperWidth = hullWidth * 0.9; // Popa um pouco mais estreita
-  sternShape.moveTo(-sternTaperWidth / 2, 0); // Canto inferior esquerdo da base da popa
-  sternShape.lineTo(sternTaperWidth / 2, 0);  // Canto inferior direito
-  sternShape.lineTo(hullWidth / 2, -sternLength);    // Canto superior direito da popa
-  sternShape.lineTo(-hullWidth / 2, -sternLength);   // Canto superior esquerdo
-  sternShape.closePath();
-
-  const sternExtrudeSettings = { depth: hullHeight, bevelEnabled: false };
-  const sternGeo = new THREE.ExtrudeGeometry(sternShape, sternExtrudeSettings);
-  sternGeo.rotateX(-Math.PI / 2);
-  const sternMesh = new THREE.Mesh(sternGeo, tempMaterial.clone());
-  // Posiciona a base da popa atrás do casco principal
-  sternMesh.position.set(0, 0, -mainHullDepth / 2);
-  group.add(sternMesh);
-
-
-  // Superestrutura (Movida para a Popa)
-  const superstructureGroup = new THREE.Group();
-  const ssMainWidth = hullWidth * 0.65;
-  const ssMainDepth = hullDepth * 0.22;
-  const ssMainHeight = hullHeight * 1.3;
-
-  const ssMainGeo = new THREE.BoxGeometry(ssMainWidth, ssMainHeight, ssMainDepth);
-  const ssMainMesh = new THREE.Mesh(ssMainGeo, tempMaterial.clone());
-  ssMainMesh.position.y = ssMainHeight / 2; // Base deste bloco no Y=0 do superstructureGroup
-  superstructureGroup.add(ssMainMesh);
-
-  const bridgeWidth = ssMainWidth * 0.8;
-  const bridgeDepth = ssMainDepth * 0.6;
-  const bridgeHeight = hullHeight * 0.9;
-  const bridgeGeo = new THREE.BoxGeometry(bridgeWidth, bridgeHeight, bridgeDepth);
-  const bridgeMesh = new THREE.Mesh(bridgeGeo, tempMaterial.clone());
-  bridgeMesh.position.set(0, ssMainHeight + bridgeHeight / 2, -ssMainDepth * 0.1); // Ponte sobre o bloco principal, levemente recuada
-  superstructureGroup.add(bridgeMesh);
-
-  // Posiciona a base da superestrutura sobre o convés (hullHeight / 2 do navio), na popa
-  superstructureGroup.position.set(0, hullHeight / 2, -mainHullDepth / 2 + ssMainDepth / 2 - sternLength * 0.5);
-  group.add(superstructureGroup);
-
-  // Chaminé (posicionada sobre a superestrutura)
-  const funnelRadius = ssMainWidth * 0.08;
-  const funnelHeightRatio = 0.9; // Relativo à altura da ponte
-  const actualFunnelHeight = bridgeHeight * funnelHeightRatio;
-
-  const funnelGeo = new THREE.CylinderGeometry(funnelRadius, funnelRadius * 0.75, actualFunnelHeight, 10);
-  const funnelMesh = new THREE.Mesh(funnelGeo, tempMaterial.clone());
-  // Y: topo da ponte + metade da altura da chaminé. Z: parte traseira da ponte.
-  funnelMesh.position.set(0, bridgeHeight + actualFunnelHeight / 2, -bridgeDepth * 0.2);
-  bridgeMesh.add(funnelMesh); // Adiciona à ponte para que se mova com ela
-
-
-  // Guindastes/Mastros do Convés (simplificados)
-  const cranePostRadius = hullWidth * 0.025;
-  const cranePostHeight = hullHeight * 1.6;
-  const derrickLength = hullWidth * 0.25;
-  const derrickRadius = cranePostRadius * 0.8;
-
-  const cranePositions = [
-    { x: -hullWidth * 0.20, z: mainHullDepth * 0.1 }, // À frente da superestrutura
-    { x: hullWidth * 0.20, z: mainHullDepth * 0.1 },
-  ];
-
-  cranePositions.forEach(pos => {
-    const craneAssembly = new THREE.Group();
-
-    const postGeo = new THREE.CylinderGeometry(cranePostRadius, cranePostRadius, cranePostHeight, 8);
-    const postMesh = new THREE.Mesh(postGeo, tempMaterial.clone());
-    postMesh.position.y = cranePostHeight / 2;
-    craneAssembly.add(postMesh);
-
-    const derrickGeo = new THREE.CylinderGeometry(derrickRadius, derrickRadius, derrickLength, 6);
-    const derrickMesh = new THREE.Mesh(derrickGeo, tempMaterial.clone());
-    derrickMesh.position.set(0, cranePostHeight * 0.75, derrickLength / 2); // Pivô no poste
-    derrickMesh.rotation.x = Math.PI / 5; // Angulado para cima
-    craneAssembly.add(derrickMesh);
-
-    craneAssembly.position.set(pos.x, hullHeight / 2, pos.z); // Base no convés
-    group.add(craneAssembly);
-  });
-
-  // Castelo de Proa (pequena plataforma elevada na proa)
-  const forecastleWidth = hullWidth * 0.7;
-  const forecastleDepth = bowLength * 0.6;
-  const forecastleHeightDeck = hullHeight * 0.25; // Altura da plataforma em si
-
-  const forecastleGeo = new THREE.BoxGeometry(forecastleWidth, forecastleHeightDeck, forecastleDepth);
-  const forecastleMesh = new THREE.Mesh(forecastleGeo, tempMaterial.clone());
-  // Posiciona a base da plataforma sobre o convés da proa
-  forecastleMesh.position.set(
+  const superstructureBaseGeo = new THREE.BoxGeometry(superstructureWidth, superstructureHeight, superstructureLength);
+  const superstructureBaseMesh = new THREE.Mesh(superstructureBaseGeo, tempMaterial.clone());
+  // Position on top of the deck, at the stern
+  const deckTopY = (lowerHullHeight + upperDeckHeight) / 2;
+  superstructureBaseMesh.position.set(
     0,
-    hullHeight / 2 + forecastleHeightDeck / 2, // Y da base + metade da altura da plataforma
-    mainHullDepth / 2 + bowLength - forecastleDepth / 2 // Na ponta da proa
+    deckTopY + superstructureHeight / 2 - upperDeckHeight, // Base of superstructure on deck
+    -mainBodyLength / 2 + superstructureLength / 2 - bowSectionLength / 2 // At the stern part of main hull
   );
-  group.add(forecastleMesh);
+  group.add(superstructureBaseMesh);
+
+  // Bridge (smaller box on top of superstructure)
+  const bridgeWidth = superstructureWidth * 0.8;
+  const bridgeLength = superstructureLength * 0.7;
+  const bridgeHeight = superstructureHeight * 0.5;
+  const bridgeGeo = new THREE.BoxGeometry(bridgeWidth, bridgeHeight, bridgeLength);
+  const bridgeMesh = new THREE.Mesh(bridgeGeo, tempMaterial.clone());
+  bridgeMesh.position.set(
+    0,
+    superstructureBaseMesh.position.y + superstructureHeight / 2 + bridgeHeight / 2,
+    superstructureBaseMesh.position.z
+  );
+  group.add(bridgeMesh);
+
+  // 5. Funnel (simple cylinder on superstructure)
+  const funnelRadius = superstructureWidth * 0.15;
+  const funnelHeight = superstructureHeight * 0.6;
+  const funnelGeo = new THREE.CylinderGeometry(funnelRadius, funnelRadius * 0.8, funnelHeight, 16);
+  const funnelMesh = new THREE.Mesh(funnelGeo, tempMaterial.clone());
+  funnelMesh.position.set(
+    0,
+    bridgeMesh.position.y + bridgeHeight/2 , // On top of bridge or main superstructure
+    superstructureBaseMesh.position.z - superstructureLength * 0.25 // Slightly towards the rear of superstructure
+  );
+  group.add(funnelMesh);
+
+  // Ensure the group itself is centered around what would be its overall geometric center
+  // if its base (keel) was at Y=0.
+  // The 'item.position.y' in initial-data refers to the keel level.
+  // The createSingleEquipmentMesh function expects the returned group to be centered
+  // around its local (0,0,0) so it can apply 'item.position.y + effectiveHeight/2'.
+  // Current construction places the keel effectively near group's local Y = -shipOverallHeight/2.
+  // So, we need to shift the entire group up by shipOverallHeight/2 to center it.
+  group.position.y = shipOverallHeight / 2;
 
 
   return group;
 }
+
