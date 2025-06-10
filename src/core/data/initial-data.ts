@@ -48,8 +48,8 @@ export const initialEquipment: Equipment[] = [
   { tag: 'pump-01', name: 'Transfer Pump P-101A', type: 'Pump', sistema: 'ODB', area: 'Área 33', operationalState: 'operando', product: '70H', position: { x: -10, y: 0, z: 20 }, size: {width: 1, height: 1, depth: 1.5}, color: '#F06292', details: 'Main product transfer pump.', pumpType: 'centrifuga', motorDetails: { potenciaCv: 50, tensao: '440V'} }, // position.y é base
 
   // Navios e Barcaças (position.y = 0 significa base no chão/água)
-  { tag: 'ship-01', name: 'Oil Tanker "Norte"', type: 'Ship', sistema: 'QAV', area: 'Cais 01', operationalState: 'operando', product: 'Petróleo Cru', position: { x: -40, y: 0, z: 0 }, size: { width: 12, height: 5, depth: 50 }, color: '#64B5F6', details: 'Oil tanker for crude oil transport.', capacityDwt: 50000 },
-  { tag: 'barge-01', name: 'Fuel Barge B-01', type: 'Barge', sistema: 'LASTRO', area: 'Cais 02', operationalState: 'não operando', product: 'Diesel', position: { x: -35, y: 0, z: 25 }, size: { width: 10, height: 2, depth: 25 }, color: '#81C784', details: 'Barge for diesel fuel.', capacityDwt: 5000 },
+  { tag: 'ship-01', name: 'Oil Tanker "Norte"', type: 'Ship', sistema: 'QAV', area: 'Cais 01', operationalState: 'operando', product: 'Petróleo Cru', position: { x: -55, y: 0, z: -15 }, size: { width: 12, height: 5, depth: 50 }, color: '#64B5F6', details: 'Oil tanker for crude oil transport.', capacityDwt: 50000 },
+  { tag: 'barge-01', name: 'Fuel Barge B-01', type: 'Barge', sistema: 'LASTRO', area: 'Cais 02', operationalState: 'não operando', product: 'Diesel', position: { x: -25, y: 0, z: 40 }, size: { width: 10, height: 2, depth: 25 }, color: '#81C784', details: 'Barge for diesel fuel.', capacityDwt: 5000 },
 ];
 
 /**
@@ -77,3 +77,4 @@ export const initialLayers: Layer[] = [
  * a menos que queira popular com dados de exemplo.
  */
 export const initialAnnotations: Annotation[] = [];
+
