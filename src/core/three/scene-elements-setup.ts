@@ -54,14 +54,14 @@ import type { Equipment, Layer, ColorMode } from '@/lib/types';
  * @param scene A instância da cena Three.js onde as luzes serão adicionadas.
  */
 export function setupLighting(scene: THREE.Scene): void {
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Intensidade ajustada
   scene.add(ambientLight);
 
-  const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1.2); 
+  const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 0.8); // Intensidade ajustada
   scene.add(hemisphereLight);
 
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 4.5); 
-  directionalLight.position.set(30, 40, 25); 
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0); // Intensidade aumentada
+  directionalLight.position.set(50, 70, 35); // Posição ajustada para melhor ângulo
   directionalLight.castShadow = false;
   scene.add(directionalLight);
 }
@@ -74,7 +74,7 @@ export function setupLighting(scene: THREE.Scene): void {
  * @returns O mesh do plano de chão criado.
  */
 export function setupGroundPlane(scene: THREE.Scene): THREE.Mesh {
-  const groundGeometry = new THREE.PlaneGeometry(100, 100);
+  const groundGeometry = new THREE.PlaneGeometry(10000, 10000); // Tamanho aumentado
   const groundMaterial = new THREE.MeshStandardMaterial({
     color: 0xBBBBBB, 
     side: THREE.DoubleSide,
@@ -126,7 +126,7 @@ export function setupRenderPipeline(
   renderer.setSize(initialWidth, initialHeight);
   renderer.shadowMap.enabled = false; 
   scene.background = new THREE.Color(0xA9C1D1); 
-  scene.fog = new THREE.Fog(0xA9C1D1, 150, 800); 
+  scene.fog = new THREE.Fog(0xA9C1D1, 200, 1000); // Névoa adicionada
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(initialWidth, initialHeight);
