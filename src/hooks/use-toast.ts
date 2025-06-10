@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -11,14 +12,14 @@ import type {
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
-type ToasterToast = ToastProps & {
+export type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
 }
 
-const actionTypes = {
+export const actionTypes = { // Adicionado export
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",
   DISMISS_TOAST: "DISMISS_TOAST",
@@ -32,9 +33,9 @@ function genId() {
   return count.toString()
 }
 
-type ActionType = typeof actionTypes
+export type ActionType = typeof actionTypes;
 
-type Action =
+export type Action =
   | {
       type: ActionType["ADD_TOAST"]
       toast: ToasterToast
@@ -52,7 +53,7 @@ type Action =
       toastId?: ToasterToast["id"]
     }
 
-interface State {
+export interface State {
   toasts: ToasterToast[]
 }
 
@@ -140,9 +141,9 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+export type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+export function toast({ ...props }: Toast) { // Adicionado export para a função toast
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -171,7 +172,7 @@ function toast({ ...props }: Toast) {
   }
 }
 
-function useToast() {
+export function useToast() { // Adicionado export para o hook useToast
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
@@ -182,7 +183,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) 
 
   return {
     ...state,
@@ -190,5 +191,3 @@ function useToast() {
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
-
-export { useToast, toast }

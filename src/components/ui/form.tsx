@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -15,6 +16,40 @@ import {
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 
+/**
+ * Componente provedor que propaga os métodos `useForm` para todos os componentes filhos
+ * através da API de Contexto do React. Para ser usado com `useFormContext`.
+ *
+ * @template TFieldValues - Tipos dos valores do formulário.
+ * @template TContext - Tipo do contexto.
+ * @template TTransformedValues - Tipos dos valores transformados do formulário.
+ * @param {FormProviderProps<TFieldValues, TContext, TTransformedValues>} props - Todos os métodos de `useForm`.
+ * @returns {JSX.Element}
+ * @remarks
+ * [API](https://react-hook-form.com/docs/useformcontext) • [Demo](https://codesandbox.io/s/react-hook-form-v7-form-context-ytudi)
+ *
+ * Exemplo de Uso:
+ * ```tsx
+ * function App() {
+ *   const methods = useForm();
+ *   const onSubmit = data => console.log(data);
+ *
+ *   return (
+ *     <FormProvider {...methods} >
+ *       <form onSubmit={methods.handleSubmit(onSubmit)}>
+ *         <NestedInput />
+ *         <input type="submit" />
+ *       </form>
+ *     </FormProvider>
+ *   );
+ * }
+ *
+ *  function NestedInput() {
+ *   const { register } = `useFormContext`(); // retrieve all hook methods
+ *   return <input {...register("test")} />;
+ * }
+ * ```
+ */
 const Form = FormProvider
 
 type FormFieldContextValue<
